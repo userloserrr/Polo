@@ -1,0 +1,131 @@
+name: Build and Release APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: gradle
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Build APK
+        run: ./gradlew assembleRelease
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Polo-APK-v1.0.0
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push'
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v1.0.0-build.${{ github.run_number }}
+          release_name: Polo APK Release v1.0.0 Build ${{ github.run_number }}
+          body: |
+            # Polo AI Assistant - APK Release
+
+            **Version**: 1.0.0
+            **Build**: ${{ github.run_number }}
+            **Date**: ${{ github.event.head_commit.timestamp }}
+            **Commit**: ${{ github.sha }}
+
+            ## Features
+
+            ### Voice & Speech
+            - ✅ Speech Recognition (sesli komut)
+            - ✅ Text-to-Speech (sesli cevap)
+            - ✅ Multilingual (TR/EN)
+            - ✅ Real-time voice input
+
+            ### AI Models
+            - Gemma 3 (4B, 12B)
+            - Gemma 2 (2B)
+            - Llama 2 (7B, 13B)
+            - Mistral 7B
+            - Phi 3 Mini
+            - DeepSeek R1 7B
+            - Claude 3.5 Sonnet
+            - Claude 3.5 Opus
+            - Claude 5.5 Sonnet ⭐
+
+            ### Image Generation
+            - ✅ Text-to-Image
+            - ✅ Real-time display
+            - ✅ Pollinations AI integration
+
+            ### UI
+            - Modern Material 3 design
+            - Dark theme
+            - Model dropdown
+            - Language toggle
+            - Chat history
+
+            ## Installation
+
+            1. Download `Polo-v1.0.0-build.${{ github.run_number }}.apk`
+            2. Enable "Unknown Sources" in Settings
+            3. Install APK
+            4. Grant microphone permission
+            5. Connect to backend
+
+            ## Backend Setup
+
+            ```bash
+            cd backend
+            python -m venv .venv
+            source .venv/bin/activate
+            pip install -r requirements.txt
+            export ANTHROPIC_API_KEY="sk-..."
+            python server.py
+            ```
+
+            ## API Endpoints
+
+            - `GET /` - Status
+            - `GET /models` - List models
+            - `GET /api/health` - Health check
+            - `POST /api/chat` - Chat endpoint
+            - `POST /api/image` - Image generation
+
+            ## Requirements
+
+            - Android 6.0 (API 24)+
+            - Microphone permission
+            - Internet connection
+            - Backend server running at http://backend-ip:8000
+          draft: false
+          prerelease: false
+
+      - name: Upload APK to Release
+        if: github.event_name == 'push'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: app/build/outputs/apk/release/app-release-unsigned.apk
+          asset_name: Polo-v1.0.0-build.${{ github.run_number }}.apk
+          asset_content_type: application/vnd.android.package-archive
